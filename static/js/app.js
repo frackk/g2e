@@ -52,6 +52,8 @@
     const importBtn     = document.getElementById("importBtn");
     const importFile    = document.getElementById("importFile");
     const importStatus  = document.getElementById("importStatus");
+    const appConfig     = window.APP_CONFIG || {};
+    const importUrl     = appConfig.importUrl || "/calculadora/import";
 
     function escHtml(s) {
       return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -533,7 +535,7 @@
       form.append("file", file);
       setImportStatus("Importando archivo...", "");
 
-      const response = await fetch("/import", {
+      const response = await fetch(importUrl, {
         method: "POST",
         body: form
       });

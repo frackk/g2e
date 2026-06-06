@@ -4,11 +4,11 @@ Herramienta local en Python/Flask para escribir contenido eActivity desde la com
 
 ## Objetivo
 
-Crear una herramienta estable para preparar apuntes, fórmulas y ejercicios en formato eActivity. La prioridad actual es mantener la generación `.g2e` segura y compatible con la calculadora. La interfaz web pública, el login y la estética final quedan como etapas posteriores.
+Crear una herramienta estable para preparar apuntes, fórmulas y ejercicios en formato eActivity. La prioridad actual es mantener la generación `.g2e` segura y compatible con la calculadora. La aplicación queda preparada para funcionar bajo la ruta `/calculadora` en un sitio web, sin login por el momento. El login, la estética final y la versión ejecutable de escritorio quedan como etapas posteriores.
 
 ## Estado actual
 
-- App local con Flask.
+- App Flask preparada para uso local y para ruta web `/calculadora`.
 - Generación de archivos `.g2e` desde texto plano con strips.
 - Importación de archivos `.g2e` para volver a editarlos desde la interfaz.
 - Vista previa tipo pantalla de calculadora en canvas.
@@ -16,12 +16,13 @@ Crear una herramienta estable para preparar apuntes, fórmulas y ejercicios en f
 - Soporte para texto, símbolos Casio y plantillas matemáticas básicas.
 - HTML, CSS y JavaScript separados.
 - Preparación opcional para usar fuentes oficiales Casio de la serie gráfica.
+- Favicon/logo propio integrado en la interfaz y en la pestaña del navegador.
 
 ## Estructura del proyecto
 
 ```text
 app.py
-    Servidor Flask, ruta de descarga e importación de archivos.
+    Servidor Flask, rutas de interfaz, descarga e importación de archivos. La interfaz principal responde en `/calculadora/`.
 
 g2e.py
     Generador binario `.g2e`, importador básico, parser de strips, codificación de caracteres y validador estructural.
@@ -37,6 +38,15 @@ static/js/app.js
 
 static/fonts/
     Carpeta opcional para fuentes Casio locales.
+
+static/downloads/
+    Carpeta reservada para una futura versión ejecutable de escritorio.
+
+static/icon.ico
+    Icono de la página y favicon.
+
+passenger_wsgi.py
+    Punto de entrada para entornos Python basados en Passenger.
 
 requirements.txt
     Dependencias Python.
@@ -59,10 +69,47 @@ python app.py
 3. Abrir en el navegador:
 
 ```text
-http://localhost:5000
+http://localhost:5000/calculadora/
 ```
 
+La raíz local `http://localhost:5000/` redirige automáticamente a `/calculadora/`.
+
 4. Escribir el contenido, elegir un nombre de archivo y descargar el `.g2e`.
+
+## Preparación web `/calculadora`
+
+La aplicación está preparada para que la interfaz principal viva en:
+
+```text
+https://frack.one/calculadora
+```
+
+Rutas principales:
+
+```text
+/calculadora/          Interfaz principal
+/calculadora/generate  Generación y descarga del `.g2e`
+/calculadora/import    Importación editable de `.g2e`
+/calculadora/static/   Archivos estáticos: CSS, JS, favicon, fuentes opcionales y descargas futuras
+```
+
+La ruta `/calculadora` redirige a `/calculadora/` para evitar problemas con rutas relativas.
+
+Para despliegues Python compatibles con Passenger se incluye `passenger_wsgi.py`. En otros entornos WSGI, el objeto de aplicación es `app` dentro de `app.py`.
+
+No se agregó login en esta etapa. La aplicación queda pública en la ruta indicada hasta que se implemente autenticación.
+
+## Versión de escritorio futura
+
+El proyecto mantiene como pendiente una versión ejecutable para Windows, con icono propio y funcionamiento local sin navegador público ni conexión a internet.
+
+La ruta recomendada para esa etapa es:
+
+- empaquetar con PyInstaller o herramienta equivalente;
+- reutilizar `g2e.py` como núcleo de generación/importación;
+- elegir entre una interfaz nativa o una app local embebida;
+- publicar el instalador o `.exe` en `static/downloads/` o en una URL pública;
+- definir `DESKTOP_DOWNLOAD_URL` para mostrar automáticamente el enlace de descarga en la interfaz web.
 
 ## Importación de archivos `.g2e`
 
@@ -183,11 +230,24 @@ Si las fuentes no están presentes, la aplicación usa una pila de fuentes monoe
 - Los archivos importados se cargan en el editor, actualizan el nombre de archivo y refrescan la simulación de pantalla.
 - Si el archivo contiene líneas nativas no editables o bytes no mapeados, la importación continúa con avisos en vez de fallar completamente.
 
+### 2026-06-06 — Preparación para `/calculadora`
+
+- La aplicación principal quedó disponible en `/calculadora/`.
+- La raíz `/` redirige a `/calculadora/` para uso local cómodo.
+- Las rutas de generación e importación quedaron bajo `/calculadora/generate` y `/calculadora/import`.
+- Los archivos estáticos quedaron bajo `/calculadora/static/` para evitar conflictos con otros recursos del sitio principal.
+- Se agregó favicon/logo mediante `static/icon.ico`.
+- Se agregó `passenger_wsgi.py` como punto de entrada para entornos Python compatibles con Passenger.
+- Se agregó soporte opcional para mostrar un enlace de descarga de versión de escritorio mediante `DESKTOP_DOWNLOAD_URL`.
+- Se agregó `static/downloads/` como carpeta reservada para ejecutables futuros.
+- Se mantiene compatibilidad con rutas antiguas `/generate` e `/import` para builds locales previos.
+
 ## Pendientes
 
 - Revisar bugs funcionales detectados durante uso real.
 - Mejorar la experiencia de edición para apuntes largos.
 - Diseñar una estética final más cuidada.
-- Preparar estructura web productiva para despliegue.
-- Agregar login y control de acceso.
-- Integrar eventualmente en `/calculadora` dentro del sitio principal.
+- Validar el despliegue final según el tipo de hosting disponible.
+- Mejorar la importación de `.g2e` nativos con caracteres o líneas todavía no mapeadas.
+- Agregar login y control de acceso si vuelve a ser necesario.
+- Crear versión ejecutable de escritorio para Windows.

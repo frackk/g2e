@@ -45,6 +45,15 @@ body {
   padding: 2rem 1rem;
 }
 
+
+.site-icon {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+  image-rendering: auto;
+  margin-bottom: 0.75rem;
+}
+
 h1 {
   font-size: 1.6rem;
   font-weight: 600;
@@ -72,6 +81,21 @@ h1 {
 }
 
 .credit a:hover {
+  color: #dbeafe;
+}
+
+.desktop-download {
+  font-size: 0.82rem;
+  margin: -1.2rem 0 2rem;
+}
+
+.desktop-download a {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.desktop-download a:hover {
   color: #dbeafe;
 }
 

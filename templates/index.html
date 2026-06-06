@@ -4,16 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>eActivity Generator (.g2e)</title>
+  <link rel="icon" href="{{ url_for('static', filename='icon.ico') }}" sizes="any">
+  <link rel="shortcut icon" href="{{ url_for('static', filename='icon.ico') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
 
+  <img class="site-icon" src="{{ url_for('static', filename='icon.ico') }}" alt="">
   <h1>eActivity Generator (.g2e)</h1>
   <p class="subtitle">Casio fx-9750GIII / fx-9860G — fx-9860GII</p>
   <p class="credit">Made by <a href="https://frack.one" target="_blank" rel="noopener noreferrer">frack.one</a></p>
+  {% if desktop_download_url %}
+  <p class="desktop-download"><a href="{{ desktop_download_url }}">Descargar versión de escritorio</a></p>
+  {% endif %}
 
   <div class="card">
-    <form id="g2eForm" method="POST" action="/generate">
+    <form id="g2eForm" method="POST" action="{{ generate_url }}">
 
       <label for="filename">Nombre del archivo</label>
       <input type="text" id="filename" name="filename"
@@ -87,6 +93,11 @@
     </div>
   </div>
 
+  <script>
+    window.APP_CONFIG = {
+      importUrl: {{ import_url|tojson }}
+    };
+  </script>
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
