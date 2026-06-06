@@ -1,19 +1,11 @@
-"""
-app.py — Flask web UI for the Casio .g2e eActivity generator
-Run:  python app.py
-Then open http://localhost:5000 in your browser.
-
-ChatGPT note (2026-05-26): filename is sanitized to an 8-character
-calculator-safe base name before generating/downloading.  That same base name
-is used as the fallback eActivity heading when the user did not write a
-"=== Title ===" strip marker.
-"""
+"""Flask interface for the Casio .g2e eActivity generator."""
 
 from flask import Flask, render_template, request, send_file
 import io
 from g2e import _parse_text, create_g2e, sanitize_casio_filename
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 512 * 1024
 
 
 @app.route("/", methods=["GET"])

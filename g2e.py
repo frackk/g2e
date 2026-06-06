@@ -47,13 +47,8 @@ _SETUP_AREA = bytes.fromhex(
 # Characters that need remapping from Unicode to Casio FONTCHARACTER encoding.
 # Basic printable ASCII (0x20-0x7E) maps 1:1; only exceptions listed here.
 #
-# ChatGPT 2026-05-26/27:
-#   The previous table had many guessed values. Several of those guesses were
-#   wrong (for example arrows, Greek letters and set symbols), which caused the
-#   preview to show one glyph while the calculator showed another one. This
-#   table was rebuilt from Cahute's public chars/chars.toml table for the
-#   fx-9860/fx-9750 family. Keep only verified mappings here. If a new symbol is
-#   added to the UI, it must also be added here with a known Casio byte value.
+# Keep only verified mappings here. New UI symbols must also be mapped here
+# with known Casio byte values.
 def _b(hexstr: str) -> bytes:
     """Small readability helper for Casio two-byte FONTCHARACTER values."""
     return bytes.fromhex(hexstr)
@@ -73,7 +68,7 @@ _CASIO_REMAP: dict[str, bytes] = {
     "“": _b("E597"), "”": _b("E598"), "¢": _b("E599"), "£": _b("E59A"), "¤": _b("E59B"), "¥": _b("E59C"), "§": _b("E59D"),
     "¬": _b("E5A0"), "«": _b("E5A3"), "»": _b("E5A4"), "▫": _b("E5A5"), "❌": _b("E5A6"), "·": _b("E5A7"),
 
-    # Greek capitals (E5 block). Full uppercase Greek alphabet supported by the table, except no E552 slot.
+    # Greek capitals (E5 block). Full uppercase Greek alphabet, except no E552 slot.
     "Α": _b("E540"), "Β": _b("E541"), "Γ": _b("E542"), "Δ": _b("E543"), "Ε": _b("E544"), "Ζ": _b("E545"), "Η": _b("E546"), "Θ": _b("E547"),
     "Ι": _b("E548"), "Κ": _b("E549"), "Λ": _b("E54A"), "Μ": _b("E54B"), "Ν": _b("E54C"), "Ξ": _b("E54D"), "Ο": _b("E54E"), "Π": _b("E54F"),
     "Ρ": _b("E550"), "Σ": _b("E551"), "Τ": _b("E553"), "Υ": _b("E554"), "Φ": _b("E555"), "Χ": _b("E556"), "Ψ": _b("E557"), "Ω": _b("E558"),
@@ -113,7 +108,7 @@ _CASIO_REMAP: dict[str, bytes] = {
     "≒": _b("E6B0"), "≈": _b("E6B1"), "≡": _b("E6B2"), "≢": _b("E6B3"), "≅": _b("E6B4"), "∽": _b("E6B5"), "∝": _b("E6B6"),
     "∬": _b("E6B7"), "∮": _b("E6B8"), "∂": _b("E6B9"), "∫": _b("E6BB"), "∡": _b("E6BC"), "∈": _b("E6BD"), "∋": _b("E6BE"),
     "⊆": _b("E6BF"), "⊇": _b("E6C0"), "⊂": _b("E6C1"), "⊃": _b("E6C2"), "⋃": _b("E6C3"), "⋂": _b("E6C4"),
-    # Convenience aliases: the calculator glyph is the n-ary symbol, but users often type the binary-looking glyphs.
+    # Convenience aliases for union/intersection glyphs.
     "∪": _b("E6C3"), "∩": _b("E6C4"),
     "∉": _b("E6C5"), "∌": _b("E6C6"), "⊈": _b("E6C7"), "⊉": _b("E6C8"), "⊄": _b("E6C9"), "⊅": _b("E6CA"), "∅": _b("E6CB"), "∃": _b("E6CC"),
     "∟": _b("E6CD"), "∨": _b("E6CE"), "∧": _b("E6CF"), "∀": _b("E6D0"), "⊕": _b("E6D1"), "⊖": _b("E6D2"), "⊗": _b("E6D3"), "⊘": _b("E6D4"),
@@ -191,8 +186,7 @@ def _encode_math_expr(text: str) -> bytes:
             i += 5
         elif rest.startswith("\\abs{"):
             # Absolute value: \abs{x} → 97 1D 1A [x] 1B 1E
-            # This matches the structural pattern used by calculator math
-            # templates and was derived from the EactMaker catalog sample.
+            # Structural form used by calculator math templates.
             arg, j = _extract_balanced(text, i + 5)
             result += b"\x97\x1d\x1a"
             result += _encode_math_expr(arg)
@@ -315,13 +309,15 @@ def sanitize_casio_filename(name: str, fallback: str = "EACT") -> str:
     """Return a calculator-safe 8.3-style .g2e filename.
 
     The generated binary does not store the file name, but the calculator's
-    storage browser is much happier with an 8-character ASCII base name.
+    storage browser is more reliable with an 8-character ASCII base name.
+    Letter case is preserved because the calculator accepts mixed-case names
+    when the file is renamed manually.
     """
     base = (name or fallback).strip()
     if base.lower().endswith(".g2e"):
         base = base[:-4]
-    base = base.upper().replace(" ", "_")
-    base = re.sub(r"[^A-Z0-9_~\-]", "_", base)
+    base = base.replace(" ", "_")
+    base = re.sub(r"[^A-Za-z0-9_~\-]", "_", base)
     base = base.strip("._- ") or fallback
     return base[:_HEADING_TITLE_MAX] + ".g2e"
 
