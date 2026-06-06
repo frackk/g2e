@@ -1,6 +1,6 @@
-# Generador eActivity para Casio fx-9750GIII
+# eActivity Generator (.g2e)
 
-Proyecto local en Python/Flask para escribir contenido eActivity desde la computadora y exportarlo como archivo `.g2e` compatible con calculadoras Casio fx-9750GIII/fx-9860.
+Herramienta local en Python/Flask para escribir contenido eActivity desde la computadora y exportarlo como archivo `.g2e` compatible con calculadoras Casio fx-9750GIII/fx-9860.
 
 ## Objetivo
 
@@ -10,19 +10,21 @@ Crear una herramienta estable para preparar apuntes, fórmulas y ejercicios en f
 
 - App local con Flask.
 - Generación de archivos `.g2e` desde texto plano con strips.
+- Importación de archivos `.g2e` para volver a editarlos desde la interfaz.
 - Vista previa tipo pantalla de calculadora en canvas.
 - Paleta de símbolos organizada en tabs.
 - Soporte para texto, símbolos Casio y plantillas matemáticas básicas.
-- Estructura base preparada para separar interfaz, estilos y scripts.
+- HTML, CSS y JavaScript separados.
+- Preparación opcional para usar fuentes oficiales Casio de la serie gráfica.
 
 ## Estructura del proyecto
 
 ```text
 app.py
-    Servidor Flask y ruta de descarga.
+    Servidor Flask, ruta de descarga e importación de archivos.
 
 g2e.py
-    Generador binario `.g2e`, parser de strips, codificación de caracteres y validador estructural.
+    Generador binario `.g2e`, importador básico, parser de strips, codificación de caracteres y validador estructural.
 
 templates/index.html
     Plantilla HTML principal.
@@ -31,7 +33,10 @@ static/css/app.css
     Estilos de la interfaz.
 
 static/js/app.js
-    Lógica de editor, preview, paleta de símbolos y canvas.
+    Lógica de editor, importación, preview, paleta de símbolos y canvas.
+
+static/fonts/
+    Carpeta opcional para fuentes Casio locales.
 
 requirements.txt
     Dependencias Python.
@@ -58,6 +63,19 @@ http://localhost:5000
 ```
 
 4. Escribir el contenido, elegir un nombre de archivo y descargar el `.g2e`.
+
+## Importación de archivos `.g2e`
+
+La interfaz incluye un botón `Importar .g2e` para cargar un eActivity existente y convertirlo en texto editable dentro del editor.
+
+La importación soporta:
+
+- archivos generados por esta herramienta;
+- archivos eActivity nativos con strips de texto;
+- símbolos incluidos en la tabla de codificación;
+- plantillas matemáticas básicas ya soportadas por el generador, como fracciones, raíces, potencias y valor absoluto.
+
+La importación no pretende conservar el binario original byte por byte. El archivo se decodifica a un formato editable y, al guardar, se vuelve a generar con la estructura segura del generador actual. Si se detectan líneas nativas no editables o bytes sin mapeo, la interfaz muestra un aviso y omite o reemplaza solamente esas partes.
 
 ## Formato de entrada
 
@@ -113,60 +131,63 @@ La paleta de símbolos de la interfaz debe mantenerse sincronizada con `_CASIO_R
 
 ## Fuente de la vista previa
 
-La interfaz usa una pila de fuentes con nombres habituales de fuentes Casio instaladas localmente y fallback monoespaciado:
+La interfaz está preparada para usar el set oficial de fuentes gráficas de Casio si los archivos están disponibles localmente en:
 
 ```text
-GraphicSeries, Casio Graph, Casio, ClassWiz Display, Cascadia Code, Consolas, monospace
+static/fonts/CFX01.ttf
+static/fonts/CFX02.ttf
+static/fonts/CFX04.ttf
+static/fonts/CFX05.ttf
+static/fonts/CFX06.ttf
 ```
 
-No se incluye ningún archivo de fuente dentro del proyecto. Para una visualización más parecida a la calculadora, instalar localmente una fuente compatible y ajustar la pila de fuentes en `static/css/app.css` y `static/js/app.js` si fuera necesario.
+Estos archivos no se incluyen en el proyecto. Para usarlos, descargar el paquete oficial `GraphicSeriesFontSet.zip` desde el sitio educativo de Casio, extraer los `.ttf` y copiarlos dentro de `static/fonts/`.
+
+Si las fuentes no están presentes, la aplicación usa una pila de fuentes monoespaciadas de respaldo y sigue funcionando normalmente.
 
 ## Cambios relevantes
 
 ### 2026-06-06
 
-- Separación de la interfaz en HTML, CSS y JavaScript:
-  - `templates/index.html`
-  - `static/css/app.css`
-  - `static/js/app.js`
+- Corrección del cálculo de `length2` dentro del subchunk `EACT1`, evitando archivos frágiles que podían congelar la calculadora al reabrirse.
+- Headings de strips normalizados a 21 caracteres.
+- Nombres de archivo sanitizados para formato seguro de calculadora.
+- Validador estructural interno para archivos `.g2e` generados.
+- Soporte para valor absoluto con `\abs{x}`.
+- Mejora de la vista previa para fórmulas anidadas.
+- Paleta de símbolos ampliada y sincronizada con la codificación backend.
+- Separación de interfaz en HTML, CSS y JavaScript.
 - Corrección del salto de scroll al insertar símbolos desde la paleta o plantillas matemáticas.
-- El foco vuelve al editor sin mover la página automáticamente.
 - El nombre de archivo conserva mayúsculas y minúsculas al descargar el `.g2e`.
-- La vista previa del título también conserva mayúsculas y minúsculas.
-- Se agregó una pila de fuentes orientada a visualización Casio, con fallback seguro.
-- Se limpió la documentación para dejarla en formato técnico y publicable.
-- Se limpiaron comentarios del código para que sean normales y mantenibles.
+- Limpieza de documentación y comentarios técnicos.
 - Se agregó límite básico de tamaño de request en Flask.
 
-### Cambios estructurales previos preservados
+### 2026-06-06 — Ajuste de interfaz y fuente
 
-- Corrección de offsets y longitudes del bloque `EACT1`.
-- Títulos de strip de 21 caracteres.
-- Validador estructural de archivos `.g2e`.
-- Soporte de símbolos extendidos mediante tabla Casio.
-- Vista previa matemática con fracciones, raíces, potencias y valor absoluto.
+- Título visible actualizado a `eActivity Generator (.g2e)`.
+- Subtítulo de modelos conservado.
+- Crédito agregado debajo del subtítulo: `Made by frack.one`, con enlace externo a `https://frack.one`.
+- Placeholder del campo de contenido eliminado.
+- Texto de ayuda inferior al editor eliminado.
+- Sección de vista previa/listado de strips eliminada por no ser necesaria para el flujo actual.
+- Vista previa en canvas y glifos de la paleta preparados para usar fuentes Casio locales (`CFX01`, `CFX02`, `CFX04`, `CFX05`, `CFX06`).
+- Se agregó `static/fonts/README.md` con instrucciones para colocar las fuentes opcionales.
 
-## Pendientes funcionales
+### 2026-06-06 — Importación editable de `.g2e`
 
-- Revisar casos reales de uso donde la calculadora muestre un carácter distinto al esperado.
-- Comparar la paleta contra capturas o archivos `.g2e` creados desde la calculadora si aparecen diferencias.
-- Mejorar la vista previa para que represente más exactamente la fuente y espaciado de la calculadora.
-- Agregar pruebas automatizadas para archivos generados.
-- Mover archivos `.g2e` de prueba antiguos a una carpeta de referencia o legado.
+- Se agregó endpoint `/import` para recibir un archivo `.g2e` y devolver contenido editable en JSON.
+- Se incorporó un importador básico en `g2e.py` capaz de leer el bloque `EACT1`, directorio de líneas, headings, líneas de texto y líneas matemáticas `0x82`.
+- Se agregó decodificación inversa para la tabla de caracteres Casio utilizada por la paleta.
+- Se agregó decodificación de plantillas básicas: fracción, raíz cuadrada, raíz n-ésima, potencia y valor absoluto.
+- Se agregó botón `Importar .g2e` en la interfaz, con input de archivo oculto y mensajes de estado.
+- Los archivos importados se cargan en el editor, actualizan el nombre de archivo y refrescan la simulación de pantalla.
+- Si el archivo contiene líneas nativas no editables o bytes no mapeados, la importación continúa con avisos en vez de fallar completamente.
 
-## Pendientes para versión web
+## Pendientes
 
-- Desactivar `debug=True` en producción.
-- Agregar login propio con contraseñas hasheadas.
-- Agregar sesiones seguras.
-- Agregar límites de contenido y validación más completa del input.
-- Definir despliegue en hosting o servidor compatible con Python.
-- Evaluar integración futura bajo una ruta tipo `/calculadora`.
-
-## Reglas de mantenimiento
-
-- No modificar el formato binario sin probarlo con archivos reales.
-- No agregar símbolos a la interfaz sin confirmar su codificación.
-- Mantener separados HTML, CSS y JavaScript.
-- Documentar cada cambio funcional importante en este archivo.
-- Priorizar estabilidad sobre estética.
+- Revisar bugs funcionales detectados durante uso real.
+- Mejorar la experiencia de edición para apuntes largos.
+- Diseñar una estética final más cuidada.
+- Preparar estructura web productiva para despliegue.
+- Agregar login y control de acceso.
+- Integrar eventualmente en `/calculadora` dentro del sitio principal.

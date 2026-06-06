@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Generador de eActivity (.g2e) — Casio fx-9750/9860</title>
+  <title>eActivity Generator (.g2e)</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
 
-  <h1>Generador de eActivity (.g2e)</h1>
+  <h1>eActivity Generator (.g2e)</h1>
   <p class="subtitle">Casio fx-9750GIII / fx-9860G — fx-9860GII</p>
+  <p class="credit">Made by <a href="https://frack.one" target="_blank" rel="noopener noreferrer">frack.one</a></p>
 
   <div class="card">
     <form id="g2eForm" method="POST" action="/generate">
@@ -19,27 +20,16 @@
              placeholder="EACT" value="EACT" maxlength="8">
 
       <label for="content">Contenido</label>
-      <textarea id="content" name="content" spellcheck="false"
-                placeholder="Escribí el texto de tu eActivity aquí...
+      <textarea id="content" name="content" spellcheck="false"></textarea>
 
-=== Introducción ===
-Este es el primer strip.
-Podés escribir varias líneas.
-
-=== Fórmulas ===
-Area del círculo: A = π × r²
-Velocidad: v = d/t"></textarea>
-
-      <p class="hint">
-        Usá nombres cortos: el archivo se guarda en formato seguro de calculadora, máximo 8 caracteres. Usá <code>=== Título ===</code> para separar strips.
-        Matemáticas: <code>\frac{num}{den}</code> fracción · <code>x^{n}</code> potencia · <code>\sqrt{x}</code> raíz cuadrada · <code>\sqrt[n]{x}</code> raíz n-ésima · <code>\int</code> integral.
-        O usá los botones de abajo para insertar.
-      </p>
-
-      <button type="submit">⬇ Descargar .g2e</button>
+      <div class="actions">
+        <button type="button" class="secondary-btn" id="importBtn">↥ Importar .g2e</button>
+        <button type="submit" class="primary-btn">⬇ Descargar .g2e</button>
+      </div>
+      <input type="file" id="importFile" accept=".g2e,application/octet-stream" hidden>
+      <div class="import-status" id="importStatus" aria-live="polite"></div>
     </form>
 
-    <!-- Screen preview -->
     <div class="screen-section">
       <div class="screen-section-header">
         <h3>Simulación de pantalla — fx-9750GIII</h3>
@@ -61,16 +51,8 @@ Velocidad: v = d/t"></textarea>
       </div>
     </div>
 
-    <!-- Strip list -->
-    <div class="strip-preview" id="preview">
-      <h3>Vista previa de strips</h3>
-      <ul class="strip-list" id="stripList"></ul>
-    </div>
-
-    <!-- Symbol palette -->
     <div class="encoding-ref">
       <h3>Insertar símbolo o plantilla</h3>
-
 
       <div class="math-templates">
         <button type="button" class="math-btn" id="btnFrac" title="Fracción: \frac{num}{den}">
@@ -101,21 +83,10 @@ Velocidad: v = d/t"></textarea>
         </button>
       </div>
 
-      <div class="sym-tabs" id="symTabs">
-        <button type="button" class="sym-tab active" data-tab="operadores">Operadores</button>
-        <button type="button" class="sym-tab" data-tab="comparacion">Comparación</button>
-        <button type="button" class="sym-tab" data-tab="griegas-min">α-ω</button>
-        <button type="button" class="sym-tab" data-tab="griegas-may">Α-Ω</button>
-        <button type="button" class="sym-tab" data-tab="flechas">Flechas</button>
-      </div>
-
-      <div class="sym-panel active" id="tab-operadores"></div>
-      <div class="sym-panel" id="tab-comparacion"></div>
-      <div class="sym-panel" id="tab-griegas-min"></div>
-      <div class="sym-panel" id="tab-griegas-may"></div>
-      <div class="sym-panel" id="tab-flechas"></div>
+      <div class="sym-tabs" id="symTabs"></div>
     </div>
   </div>
+
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>

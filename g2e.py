@@ -116,6 +116,13 @@ _CASIO_REMAP: dict[str, bytes] = {
 }
 
 
+# Reverse lookup used by the importer.  Some byte values have usability aliases;
+# prefer the glyphs shown in the editor palette when decoding existing files.
+_CASIO_DECODE: dict[bytes, str] = {value: key for key, value in _CASIO_REMAP.items()}
+_CASIO_DECODE[_b("E640")] = "α"
+_CASIO_DECODE[_b("E6C3")] = "⋃"
+_CASIO_DECODE[_b("E6C4")] = "⋂"
+
 def _extract_balanced(text: str, start: int) -> tuple:
     """Return (inner_content, pos_after_closing_brace) for text[start:] inside {}."""
     depth = 1
@@ -548,6 +555,246 @@ class G2EBuilder:
 
         not_hdr = bytes([~b & 0xFF for b in hdr])
         return not_hdr + body
+
+
+# ---------------------------------------------------------------------------
+# Importer / decoder
+# ---------------------------------------------------------------------------
+
+@dataclass
+class G2EImportResult:
+    """Editable content extracted from a .g2e file."""
+    filename: str
+    content: str
+    warnings: List[str] = field(default_factory=list)
+
+
+def _strip_chunk_padding(chunk: bytes, start: int = 0) -> bytes:
+    """Return bytes up to the first null terminator after start."""
+    if start >= len(chunk):
+        return b""
+    end = chunk.find(b"\x00", start)
+    if end == -1:
+        end = len(chunk)
+    return chunk[start:end]
+
+
+def _starts_with_any(data: bytes, pos: int, stops: tuple[bytes, ...]) -> Optional[bytes]:
+    for stop in stops:
+        if stop and data.startswith(stop, pos):
+            return stop
+    return None
+
+
+def _decode_casio_expr(data: bytes, start: int = 0, stops: tuple[bytes, ...] = ()) -> tuple[str, int, Optional[bytes], int]:
+    """Decode Casio FONTCHARACTER bytes into editable text markup.
+
+    Returns (decoded_text, new_position, matched_stop, unknown_count).
+    """
+    out: List[str] = []
+    i = start
+    unknown = 0
+
+    while i < len(data):
+        matched_stop = _starts_with_any(data, i, stops)
+        if matched_stop is not None:
+            return "".join(out), i + len(matched_stop), matched_stop, unknown
+
+        if data.startswith(b"\xbb\x1d\x1a", i):
+            num, pos, stop, u1 = _decode_casio_expr(data, i + 3, (b"\x1b\x1a", b"\x1b\x1e"))
+            den = ""
+            u2 = 0
+            if stop == b"\x1b\x1a":
+                den, pos, _, u2 = _decode_casio_expr(data, pos, (b"\x1b\x1e",))
+            out.append(f"\\frac{{{num}}}{{{den}}}")
+            unknown += u1 + u2
+            i = pos
+            continue
+
+        if data.startswith(b"\xb8\x1d\x1a", i):
+            idx, pos, stop, u1 = _decode_casio_expr(data, i + 3, (b"\x1b\x1a", b"\x1b\x1e"))
+            arg = ""
+            u2 = 0
+            if stop == b"\x1b\x1a":
+                arg, pos, _, u2 = _decode_casio_expr(data, pos, (b"\x1b\x1e",))
+            out.append(f"\\sqrt[{idx}]{{{arg}}}")
+            unknown += u1 + u2
+            i = pos
+            continue
+
+        if data.startswith(b"\x86\x1d\x1a", i):
+            arg, pos, _, u1 = _decode_casio_expr(data, i + 3, (b"\x1b\x1e",))
+            out.append(f"\\sqrt{{{arg}}}")
+            unknown += u1
+            i = pos
+            continue
+
+        if data.startswith(b"\x97\x1d\x1a", i):
+            arg, pos, _, u1 = _decode_casio_expr(data, i + 3, (b"\x1b\x1e",))
+            out.append(f"\\abs{{{arg}}}")
+            unknown += u1
+            i = pos
+            continue
+
+        if data.startswith(b"\xa8\x1a", i):
+            exp, pos, _, u1 = _decode_casio_expr(data, i + 2, (b"\x1b",))
+            out.append(f"^{{{exp}}}")
+            unknown += u1
+            i = pos
+            continue
+
+        if i + 1 < len(data):
+            pair = data[i:i + 2]
+            if pair in _CASIO_DECODE:
+                out.append(_CASIO_DECODE[pair])
+                i += 2
+                continue
+
+        single = data[i:i + 1]
+        if single in _CASIO_DECODE:
+            out.append(_CASIO_DECODE[single])
+        elif data[i] in (0x0A, 0x0D):
+            out.append("\n")
+        elif 0x20 <= data[i] <= 0x7E:
+            out.append(chr(data[i]))
+        else:
+            out.append("?")
+            unknown += 1
+        i += 1
+
+    return "".join(out), i, None, unknown
+
+
+def decode_casio_text(data: bytes) -> tuple[str, int]:
+    """Decode a null-terminated Casio text payload."""
+    decoded, _, _, unknown = _decode_casio_expr(_strip_chunk_padding(data))
+    return decoded, unknown
+
+
+def _decode_line_payload(line_type: int, chunk: bytes) -> tuple[str, int]:
+    """Decode one eActivity line payload into editable source text."""
+    if line_type == 0x82:
+        payload = _strip_chunk_padding(chunk, 4)
+    else:
+        payload = _strip_chunk_padding(chunk, 0)
+    decoded, _, _, unknown = _decode_casio_expr(payload)
+    return decoded, unknown
+
+
+def _extract_heading_title(decoded_heading: str) -> str:
+    """Turn native fixed-width headings into strip titles."""
+    m = re.match(r"^=+(.*?)=+$", decoded_heading.strip())
+    if m:
+        return m.group(1).strip() or "EACT"
+    return decoded_heading.strip() or "EACT"
+
+
+def _locate_eact_base(data: bytes) -> int:
+    """Return the absolute offset of LC inside the EACT1 body."""
+    if len(data) < 0x90:
+        raise ValueError("El archivo es demasiado pequeño para ser un .g2e válido.")
+    eact1 = data.find(b"EACT1\x00\x00\x00")
+    if eact1 < 0:
+        raise ValueError("No se encontró el bloque EACT1 dentro del archivo.")
+    marker_pos = eact1 + 0x10
+    if marker_pos + 4 > len(data) or data[marker_pos:marker_pos + 4] != b"\xd4\x00\x00\x66":
+        raise ValueError("El bloque EACT1 no tiene la estructura esperada.")
+    return marker_pos + 4
+
+
+def import_g2e(data: bytes, source_filename: str = "") -> G2EImportResult:
+    """Import a .g2e file and return editable text for the web editor.
+
+    Text lines, strip headings and the supported math templates are decoded.
+    Unsupported native line types are skipped with warnings instead of being
+    rewritten incorrectly.
+    """
+    base = _locate_eact_base(data)
+    if base + 4 > len(data):
+        raise ValueError("No se pudo leer la cantidad de líneas del archivo.")
+
+    lc = int.from_bytes(data[base:base + 4], "big")
+    if lc <= 0 or lc > 10000:
+        raise ValueError("La cantidad de líneas del archivo no es válida.")
+
+    dir_start = base + 4
+    term_start = dir_start + lc * 4
+    if term_start + 4 > len(data):
+        raise ValueError("El directorio de líneas está fuera del archivo.")
+
+    entries: List[tuple[int, int]] = []
+    for i in range(lc):
+        pos = dir_start + i * 4
+        line_type = data[pos]
+        offset = int.from_bytes(data[pos + 1:pos + 4], "big")
+        entries.append((line_type, offset))
+
+    if entries[0][1] != 8 + lc * 4:
+        raise ValueError("El primer offset de línea no coincide con el directorio.")
+
+    offsets = [offset for _, offset in entries]
+    if offsets != sorted(offsets):
+        raise ValueError("Los offsets de líneas no están ordenados.")
+
+    warnings: List[str] = []
+    out_lines: List[str] = []
+    first_title = ""
+    skip_blank_after_heading = False
+    unsupported_count = 0
+    unknown_count = 0
+
+    for idx, (line_type, offset) in enumerate(entries):
+        next_offset = entries[idx + 1][1] if idx + 1 < len(entries) else len(data) - base
+        abs_start = base + offset
+        abs_end = base + next_offset
+        if abs_start < base or abs_start > len(data) or abs_end < abs_start:
+            raise ValueError("Un offset de línea apunta fuera del archivo.")
+        chunk = data[abs_start:min(abs_end, len(data))]
+
+        if line_type == 0x07:
+            decoded, line_unknown = _decode_line_payload(line_type, chunk)
+            unknown_count += line_unknown
+            title = _extract_heading_title(decoded)
+            if not first_title:
+                first_title = title
+            if out_lines and out_lines[-1] != "":
+                out_lines.append("")
+            out_lines.append(f"=== {title} ===")
+            skip_blank_after_heading = True
+            continue
+
+        if line_type in (0x81, 0x82):
+            decoded, line_unknown = _decode_line_payload(line_type, chunk)
+            unknown_count += line_unknown
+            if skip_blank_after_heading and decoded == "":
+                skip_blank_after_heading = False
+                continue
+            skip_blank_after_heading = False
+            out_lines.extend(decoded.split("\n"))
+            continue
+
+        skip_blank_after_heading = False
+        if any(b != 0x00 for b in chunk):
+            unsupported_count += 1
+        else:
+            unsupported_count += 1
+
+    if unsupported_count:
+        warnings.append(f"Se omitieron {unsupported_count} línea(s) nativa(s) no editables o no soportadas.")
+    if unknown_count:
+        warnings.append(f"Se reemplazaron {unknown_count} byte(s) no reconocidos por '?'.")
+
+    content = "\n".join(out_lines).strip("\n")
+    if not content:
+        raise ValueError("El archivo no contiene texto editable compatible.")
+
+    requested_name = source_filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+    if requested_name.lower().endswith(".g2e"):
+        requested_name = requested_name[:-4]
+    fallback_name = first_title or "EACT"
+    filename = sanitize_casio_filename(requested_name or fallback_name, fallback=fallback_name)[:-4]
+
+    return G2EImportResult(filename=filename, content=content, warnings=warnings)
 
 
 # ---------------------------------------------------------------------------

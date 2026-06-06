@@ -1,7 +1,37 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+@font-face {
+  font-family: 'CFX01';
+  src: url('../fonts/CFX01.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CFX02';
+  src: url('../fonts/CFX02.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CFX04';
+  src: url('../fonts/CFX04.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CFX05';
+  src: url('../fonts/CFX05.ttf') format('truetype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'CFX06';
+  src: url('../fonts/CFX06.ttf') format('truetype');
+  font-display: swap;
+}
+
 :root {
-  --calculator-font: 'GraphicSeries', 'Casio Graph', 'Casio', 'ClassWiz Display', 'Cascadia Code', 'Consolas', monospace;
+  --calculator-font: 'CFX01', 'CFX02', 'CFX04', 'CFX05', 'CFX06', 'GraphicSeries', 'Casio Graph', 'Casio', 'ClassWiz Display', 'Courier New', 'Cascadia Code', 'Consolas', monospace;
 }
 
 body {
@@ -26,7 +56,23 @@ h1 {
 .subtitle {
   color: #888;
   font-size: 0.85rem;
+  margin-bottom: 0.2rem;
+}
+
+.credit {
+  color: #888;
+  font-size: 0.85rem;
   margin-bottom: 2rem;
+}
+
+.credit a {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.credit a:hover {
+  color: #dbeafe;
 }
 
 .card {
@@ -80,34 +126,56 @@ textarea {
 }
 textarea:focus { border-color: #7eb8f7; }
 
-.hint {
-  font-size: 0.75rem;
-  color: #555e71;
-  margin-bottom: 1.4rem;
-  line-height: 1.6;
-}
-.hint code {
-  background: #1e293b;
-  padding: 0.1em 0.35em;
-  border-radius: 3px;
-  color: #93c5fd;
+
+.actions {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 0.7rem;
+  margin-top: 0.2rem;
 }
 
-button[type="submit"] {
+.primary-btn,
+.secondary-btn {
   width: 100%;
   padding: 0.75rem;
-  background: #2563eb;
-  border: none;
   border-radius: 8px;
   color: #fff;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   letter-spacing: 0.3px;
-  transition: background 0.2s, transform 0.1s;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
 }
-button[type="submit"]:hover { background: #1d4ed8; }
-button[type="submit"]:active { transform: scale(0.98); }
+
+.primary-btn {
+  background: #2563eb;
+  border: 1px solid #2563eb;
+}
+.primary-btn:hover { background: #1d4ed8; border-color: #1d4ed8; }
+.primary-btn:active { transform: scale(0.98); }
+
+.secondary-btn {
+  background: #1e293b;
+  border: 1px solid #3a5080;
+  color: #93c5fd;
+}
+.secondary-btn:hover { background: #263754; border-color: #4a6a9c; }
+.secondary-btn:active { transform: scale(0.98); }
+
+.import-status {
+  min-height: 1.2rem;
+  margin-top: 0.7rem;
+  color: #7eb8f7;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.import-status.error { color: #fca5a5; }
+.import-status.warning { color: #facc15; }
+.import-status.success { color: #86efac; }
+
+@media (max-width: 620px) {
+  .actions { grid-template-columns: 1fr; }
+}
 
 /* Screen simulation */
 
@@ -161,7 +229,6 @@ button[type="submit"]:active { transform: scale(0.98); }
 
 #screen {
   display: block;
-  /* canvas width/height set by JS; image-rendering for crisp pixels */
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
@@ -195,32 +262,6 @@ button[type="submit"]:active { transform: scale(0.98); }
   line-height: 1.8;
 }
 .screen-stats strong { color: #7eb8f7; }
-
-/* Strip preview */
-
-.strip-preview {
-  margin-top: 1.6rem;
-  border-top: 1px solid #2a3a5c;
-  padding-top: 1.2rem;
-}
-.strip-preview h3 {
-  font-size: 0.78rem;
-  color: #555e71;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  margin-bottom: 0.8rem;
-}
-.strip-list { list-style: none; }
-.strip-list li {
-  background: #0f172a;
-  border: 1px solid #1e293b;
-  border-radius: 6px;
-  padding: 0.5rem 0.8rem;
-  margin-bottom: 0.4rem;
-  font-size: 0.85rem;
-}
-.strip-list li .strip-title { color: #7eb8f7; font-weight: 600; }
-.strip-list li .strip-lines { color: #6b7280; margin-left: 0.5rem; }
 
 /* Symbol palette */
 
@@ -285,7 +326,7 @@ button[type="submit"]:active { transform: scale(0.98); }
 .sym .glyph {
   color: #93c5fd;
   font-family: var(--calculator-font);
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   line-height: 1.2;
 }
 .sym .sym-label {
@@ -334,4 +375,8 @@ button[type="submit"]:active { transform: scale(0.98); }
   height: 1px;
   background: #7eb8f7;
   margin: 1px 0;
+}
+
+.math-btn > span:not(.math-preview) {
+  font-family: var(--calculator-font);
 }

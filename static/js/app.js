@@ -47,8 +47,11 @@
       }
     ];
 
-    const textarea  = document.getElementById("content");
-    const stripList = document.getElementById("stripList");
+    const textarea      = document.getElementById("content");
+    const filenameInput = document.getElementById("filename");
+    const importBtn     = document.getElementById("importBtn");
+    const importFile    = document.getElementById("importFile");
+    const importStatus  = document.getElementById("importStatus");
 
     function escHtml(s) {
       return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
@@ -252,17 +255,6 @@
       return strips.length ? strips : [["", []]];
     }
 
-    function updateStripPreview(strips) {
-      stripList.innerHTML = "";
-      strips.forEach(([title, lines]) => {
-        const li = document.createElement("li");
-        const lineCount = lines.filter(l => l.trim() !== "").length;
-        li.innerHTML =
-          `<span class="strip-title">${title ? escHtml(title) : "(sin título)"}</span>` +
-          `<span class="strip-lines">— ${lineCount} línea${lineCount !== 1 ? "s" : ""}</span>`;
-        stripList.appendChild(li);
-      });
-    }
 
     // Screen simulation
     const COLS   = 21;
@@ -278,7 +270,7 @@
     const INV_BG   = "#182613";
     const INV_FG   = "#9cba90";
 
-    const CANVAS_FONT = "'GraphicSeries', 'Casio Graph', 'Casio', 'ClassWiz Display', 'Courier New', Consolas, monospace";
+    const CANVAS_FONT = "'CFX01', 'CFX02', 'CFX04', 'CFX05', 'CFX06', 'GraphicSeries', 'Casio Graph', 'Casio', 'ClassWiz Display', 'Courier New', Consolas, monospace";
 
     const canvas = document.getElementById("screen");
     canvas.width  = COLS * PX_W;
@@ -320,7 +312,7 @@
 
     function setFont(scale = 1) {
       const px = Math.max(8, Math.round(PX_H * scale));
-      ctx.font = `bold ${px}px ${CANVAS_FONT}`;
+      ctx.font = `${px}px ${CANVAS_FONT}`;
       ctx.textBaseline = "alphabetic";
     }
 
@@ -527,9 +519,63 @@
 
     function refresh() {
       const strips = parseStrips(textarea.value);
-      updateStripPreview(strips);
       updateScreen(strips);
     }
+
+    function setImportStatus(message, kind = "") {
+      if (!importStatus) return;
+      importStatus.textContent = message || "";
+      importStatus.className = "import-status" + (kind ? " " + kind : "");
+    }
+
+    async function importSelectedFile(file) {
+      const form = new FormData();
+      form.append("file", file);
+      setImportStatus("Importando archivo...", "");
+
+      const response = await fetch("/import", {
+        method: "POST",
+        body: form
+      });
+
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch (_) {
+        payload = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(payload.error || "No se pudo importar el archivo.");
+      }
+
+      filenameInput.value = payload.filename || filenameInput.value || "EACT";
+      textarea.value = payload.content || "";
+      currentPage = 0;
+      refresh();
+
+      if (payload.warnings && payload.warnings.length) {
+        setImportStatus("Importado con avisos: " + payload.warnings.join(" "), "warning");
+      } else {
+        setImportStatus("Archivo importado correctamente.", "success");
+      }
+    }
+
+    importBtn?.addEventListener("click", () => {
+      importFile?.click();
+    });
+
+    importFile?.addEventListener("change", async () => {
+      const file = importFile.files && importFile.files[0];
+      if (!file) return;
+      try {
+        await importSelectedFile(file);
+      } catch (err) {
+        setImportStatus(err.message || "No se pudo importar el archivo.", "error");
+      } finally {
+        importFile.value = "";
+      }
+    });
 
     // Math template buttons
     document.getElementById("btnFrac").addEventListener("click", () => insertAtCursor("\\frac{num}{den}", 6, 9));
@@ -540,7 +586,7 @@
     document.getElementById("btnAbs").addEventListener("click", () => insertAtCursor("\\abs{x}", 5, 6));
 
     textarea.addEventListener("input", refresh);
-    document.getElementById("filename")?.addEventListener("input", refresh);
+    filenameInput?.addEventListener("input", refresh);
 
     buildSymbolPalette();
     refresh();
